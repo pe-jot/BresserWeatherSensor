@@ -16,10 +16,10 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "AHTX0.h"						// Original source: https://github.com/adafruit/Adafruit_AHTX0
-
 #define ENABLE_DEBUG
 #include "Debug.h"
+#include "AHTX0.h"						// Original source: https://github.com/adafruit/Adafruit_AHTX0
+
 
 #define DATA_BITS						41
 #define PREAMBLE_BITS					8
@@ -28,6 +28,7 @@
 #define PACKET_LENGTH_BYTES				(PACKET_LENGTH_BITS / BITS_PER_BYTE)
 #define PACKET_COUNT					15
 #define TX_IN_PROGRESS					(TCB0.STATUS & TCB_RUN_bm)
+
 
 AHTX0 sensor;
 SerialDebugging debug;
@@ -90,7 +91,7 @@ inline void configureLowSpeed(void)
 ISR(RTC_PIT_vect) // Every 4s
 {
 	uint8_t sreg = SREG;
-
+	
 	if (--rtcCycleCount == 0)
 	{
 		configureFullSpeed();
@@ -194,9 +195,9 @@ void assemblePacket(const uint8_t id, const uint8_t battLow, const uint8_t test,
 	
 	DEBUG_TEXT("\tID ");
 	DEBUG_VALUE(id);
-	DEBUG_TEXT("\tt = ");
+	DEBUG_TEXT("\n\tt = ");
 	DEBUG_VALUE(intTemperature);
-	DEBUG_TEXT("\th = ");
+	DEBUG_TEXT("\n\th = ");
 	DEBUG_VALUE(intHumidity);
 	DEBUG_TEXT("\n");
 	
@@ -248,7 +249,7 @@ void setup(void)
 	
 #ifdef ENABLE_DEBUG
 	debug.begin();
-	debug.sendText("Hello\n");
+	DEBUG_TEXT("Hello\n");
 #endif	
 
 	sei();
@@ -267,7 +268,7 @@ void loop(void)
 	}
 	else if (cmdEnterPowersave)
 	{
-		configureLowSpeed();
+//		configureLowSpeed();
 		SLPCTRL.CTRLA = SLPCTRL_SMODE_PDOWN_gc | SLPCTRL_SEN_bm;
 		cmdSleep = 1;
 		cmdEnterPowersave = 0;
@@ -297,11 +298,12 @@ void loop(void)
 		// CPU is configured to full speed at interrupt level already...
 		temperature = NAN;
 		humidity = NAN;
+		LED_ON();
 		sensor.read(temperature, humidity); // Returns centigrade
 		assemblePacket(id, batteryLow, testButtonPressed, channel, temperature, humidity);
-				
+		LED_OFF();
 		// Initiate transmission
-		configureMediumSpeed();
+//		configureMediumSpeed();
 		packetCount = PACKET_COUNT;
 	}
 	
@@ -321,16 +323,3 @@ int main(void)
 		loop();
 	}
 }
-
-
-/*
-extern "C" void __cxa_pure_virtual(void) __attribute__ ((__noreturn__));
-void __cxa_pure_virtual(void) {
-	while(1);
-}
-
-extern "C" void __cxa_deleted_virtual(void) __attribute__ ((__noreturn__));
-void __cxa_deleted_virtual(void) {
-	while(1);
-}
-*/

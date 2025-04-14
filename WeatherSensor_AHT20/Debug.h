@@ -38,8 +38,4 @@ public:
 	void sendByte(const uint8_t character);
 	void sendText(const char* text);
 	void sendValue(const int16_t value);
-	
-private:
-	void waitForBufferEmpty();
-	void waitForTransmitComplete();
 };

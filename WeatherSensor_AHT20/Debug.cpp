@@ -14,22 +14,10 @@ SerialDebugging::SerialDebugging()
 {}
 
 
-void SerialDebugging::waitForBufferEmpty()
-{
-	while (!(USART0.STATUS & USART_DREIF_bm));
-}
-
-
-void SerialDebugging::waitForTransmitComplete()
-{
-	while (!(USART0.STATUS & USART_TXCIF_bm));
-	USART0.STATUS |= USART_TXCIF_bm;
-}
-
-
 void SerialDebugging::sendByte(const uint8_t character)
 {
-	waitForBufferEmpty();
+	// Wait for data register empty flag
+	while ((USART0.STATUS & USART_DREIF_bm) == 0);
 	USART0.TXDATAL = character;
 }
 
@@ -41,7 +29,12 @@ void SerialDebugging::sendText(const char* text)
 		sendByte(*text);
 		text++;
 	}
-	waitForTransmitComplete();
+	
+	// Wait for transmit complete flag (in order to make sure transmission is complete before entering a sleep)
+	// Is set when the entire frame in the Transmit Shift register has been shifted out, and there is no new data in the transmit buffer.
+	// Needs to be explicitly cleared.
+	while ((USART0.STATUS & USART_TXCIF_bm) == 0);
+	USART0.STATUS |= USART_TXCIF_bm;
 }
 
 
@@ -50,17 +43,17 @@ void SerialDebugging::sendValue(const int16_t value)
 	char buffer[7];
 	itoa(value, buffer, 10);
 	sendText(buffer);
-	waitForTransmitComplete();
 }
 
 
 void SerialDebugging::begin()
 {
+	// Port mapping verified for ATtiny816
 #ifdef USE_ALTERNATE_USART_PORT
 	PORTMUX.CTRLB |= PORTMUX_USART0_ALTERNATE_gc;
-	PORTA.DIRSET = PIN1_bm;
+	PORTA.DIRSET |= PIN1_bm;
 #else
-	PORTB.DIRSET = PIN2_bm;	// Unsure whether this is actually necessary or not
+	PORTB.DIRSET |= PIN2_bm;
 #endif
 	USART0.BAUD = BAUD_VALUE;
 	USART0.CTRLC = USART_CHSIZE_8BIT_gc;
