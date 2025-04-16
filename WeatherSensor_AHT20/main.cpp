@@ -40,7 +40,6 @@ volatile uint8_t cmdReadEnvironmentData;
 volatile uint8_t txBuffer[PACKET_LENGTH_BYTES];
 volatile uint8_t currentByte;
 volatile uint8_t currentBit;
-volatile uint8_t rtcCycleCount;
 
 const uint8_t testButtonPressed = 0;
 const uint8_t batteryLow = 0;
@@ -88,15 +87,16 @@ inline void configureLowSpeed(void)
 }
 
 
-ISR(RTC_PIT_vect) // Every 4s
+ISR(RTC_PIT_vect) // Every 4s - first interval is undefined (anything between 0..4s)
 {
+	static uint8_t pitCycleCount = 1;
 	uint8_t sreg = SREG;
 	
-	if (--rtcCycleCount == 0)
+	if (--pitCycleCount == 0)
 	{
 		configureFullSpeed();
 		cmdReadEnvironmentData = 1;
-		rtcCycleCount = 15;
+		pitCycleCount = 15;
 	}
 	else
 	{
@@ -132,7 +132,7 @@ ISR(TCB0_INT_vect) // Every 250µs @ 1 MHz - could be named TCB0_CAPT_vect as wel
 				++currentByte;
 			}
 			
-			currentBitValue = ((temp & 0x80) == 0x80);;
+			currentBitValue = ((temp & 0x80) == 0x80);
 			temp = temp << 1;
 		}
 		
@@ -193,13 +193,12 @@ void assemblePacket(const uint8_t id, const uint8_t battLow, const uint8_t test,
 	uint8_t intHumidity = (uint8_t)round(humidity);
 	int16_t intTemperature = (int16_t)round(temperature * 10.0);
 	
-	DEBUG_TEXT("\tID ");
+	DEBUG_BYTE('#');
 	DEBUG_VALUE(id);
-	DEBUG_TEXT("\n\tt = ");
+	DEBUG_BYTE('t');
 	DEBUG_VALUE(intTemperature);
-	DEBUG_TEXT("\n\th = ");
+	DEBUG_BYTE('h');
 	DEBUG_VALUE(intHumidity);
-	DEBUG_TEXT("\n");
 	
 	if ((channel == 0) || (intHumidity > 100) || (intTemperature < -677) || (intTemperature > 1590))
 	{
@@ -224,8 +223,7 @@ void setup(void)
 	cmdEnterStandby = 0;
 	cmdEnterPowersave = 0;
 	cmdSleep = 0;
-	cmdReadEnvironmentData = 1;
-	rtcCycleCount = 15;
+	cmdReadEnvironmentData = 0;
 	
 	packetCount = 0;
 	id = rand() % 255;
@@ -249,7 +247,6 @@ void setup(void)
 	
 #ifdef ENABLE_DEBUG
 	debug.begin();
-	DEBUG_TEXT("Hello\n");
 #endif	
 
 	sei();
@@ -268,7 +265,7 @@ void loop(void)
 	}
 	else if (cmdEnterPowersave)
 	{
-//		configureLowSpeed();
+		configureLowSpeed();
 		SLPCTRL.CTRLA = SLPCTRL_SMODE_PDOWN_gc | SLPCTRL_SEN_bm;
 		cmdSleep = 1;
 		cmdEnterPowersave = 0;
@@ -278,6 +275,7 @@ void loop(void)
 	{
 		cmdSleep = 0;
 		sleep_cpu();
+		return;
 	}
 	
 	if (packetCount > 0 && !TX_IN_PROGRESS)
@@ -286,30 +284,29 @@ void loop(void)
 		currentBit = 0;
 		currentByte = 0;
 		TX_PIN_LOW();
-		TCB0.CTRLA |= TCB_ENABLE_bm; // Start Timer			
+		TCB0.CTRLA |= TCB_ENABLE_bm; // Start Timer
 		--packetCount;
 	}
 
 	if (cmdReadEnvironmentData && packetCount == 0)
 	{
-		cmdReadEnvironmentData = 0;		
-		DEBUG_TEXT("Starting measurement\n");
+		cmdReadEnvironmentData = 0;
 		
-		// CPU is configured to full speed at interrupt level already...
+		// CPU is configured to full speed at interrupt level already.
 		temperature = NAN;
 		humidity = NAN;
-		LED_ON();
 		sensor.read(temperature, humidity); // Returns centigrade
 		assemblePacket(id, batteryLow, testButtonPressed, channel, temperature, humidity);
-		LED_OFF();
+		
 		// Initiate transmission
-//		configureMediumSpeed();
+		TXPWR_ON();
+		configureMediumSpeed();
 		packetCount = PACKET_COUNT;
 	}
 	
 	if (!cmdReadEnvironmentData && !TX_IN_PROGRESS && packetCount == 0)
-	{		
-		DEBUG_TEXT("Entering powersave\n");
+	{
+		TXPWR_OFF();
 		cmdEnterPowersave = 1;
 	}
 }
