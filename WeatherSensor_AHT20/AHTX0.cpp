@@ -24,8 +24,8 @@ bool AHTX0::begin(const uint8_t i2c_address)
 
 	uint8_t cmd[3];
 
-	cmd[0] = AHTX0_CMD_SOFTRESET;		
-	if (!TWI_MasterWrite(mAddress, cmd, 1, TWIM_SEND_STOP))
+	cmd[0] = AHTX0_CMD_SOFTRESET;
+	if (TWI_MasterWrite(mAddress, cmd, 1, TWIM_SEND_STOP) != 0)
 	{
 		return false;
 	}
@@ -65,7 +65,7 @@ uint8_t AHTX0::getStatus()
 bool AHTX0::read(float &humidity, float &temperature)
 {
 	uint8_t cmd[3] = { AHTX0_CMD_TRIGGER, 0x33, 0 };
-	if (!TWI_MasterWrite(mAddress, cmd, 3, TWIM_SEND_STOP))
+	if (TWI_MasterWrite(mAddress, cmd, 3, TWIM_SEND_STOP) != 0)
 	{
 		return false;
 	}
@@ -76,10 +76,7 @@ bool AHTX0::read(float &humidity, float &temperature)
 	}
 
 	uint8_t data[6];
-	if (!TWI_MasterRead(mAddress, data, 6, TWIM_SEND_STOP))
-	{
-		return false;
-	}
+	TWI_MasterRead(mAddress, data, 6, TWIM_SEND_STOP);
 	
 	uint32_t h = data[1];
 	h <<= 8;

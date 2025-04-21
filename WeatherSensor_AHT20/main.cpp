@@ -251,7 +251,12 @@ void setup(void)
 
 	sei();
 	
-	sensor.begin();
+	if (!sensor.begin())
+	{
+		DEBUG_TEXT("Sensor init failure!\n");
+		LED_ON();
+		while(1);
+	}
 }
 
 
@@ -295,7 +300,7 @@ void loop(void)
 		// CPU is configured to full speed at interrupt level already.
 		temperature = NAN;
 		humidity = NAN;
-		sensor.read(temperature, humidity); // Returns centigrade
+		sensor.read(humidity, temperature); // Returns centigrade
 		assemblePacket(id, batteryLow, testButtonPressed, channel, temperature, humidity);
 		
 		// Initiate transmission
