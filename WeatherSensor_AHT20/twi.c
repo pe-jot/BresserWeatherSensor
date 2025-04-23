@@ -182,7 +182,9 @@ uint8_t TWI_MasterReady(void)
  *  \param frequency				    The required baud.
  */
 void TWI_MasterSetBaud(uint32_t frequency){
-
+#ifdef OVERRIDE_TWI_BAUD
+	TWI0.MBAUD = TWI_BAUD_VALUE;
+#else
 //		Formula is: BAUD = ((F_CLKPER/frequency) - F_CLKPER*T_RISE - 10)/2;
 //		Where T_RISE varies depending on operating frequency...
 //			From 1617 DS: 1000ns @ 100kHz / 300ns @ 400kHz / 120ns @ 1MHz
@@ -208,7 +210,7 @@ void TWI_MasterSetBaud(uint32_t frequency){
 	
 	uint32_t baud = (F_CPU_TWI / frequency - F_CPU_TWI / 1000 / 1000 * t_rise / 1000 - 10) / 2;
 	TWI0.MBAUD = (uint8_t)baud;
-
+#endif
 }
 
 /*! \brief TWI write transaction.
