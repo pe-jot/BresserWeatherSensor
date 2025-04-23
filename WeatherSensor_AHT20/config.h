@@ -45,12 +45,7 @@
 #define F_CPU							F_CPU_FULLSPEED
 #define F_CPU_USART						F_CPU_FULLSPEED /* Desired CPU clock during USART operation */
 
-#define CONFIGURE_OUTPUTS() { \
-	PORTA.DIRSET = TXPWR_BIT | TXPWR_GND_BIT | TX_PIN_BIT; \
-	PORTA.OUTCLR = TXPWR_BIT | TXPWR_GND_BIT | TX_PIN_BIT; \
-	PORTC.DIRSET = LED_BIT; \
-	PORTC.OUTSET = LED_BIT; \
-}
+#define UNLOCK_PROTECTED_REGISTERS()	CCP = CCP_IOREG_gc
 
 /* Used by TWI library */
 #define CONFIGURE_TWI_IO() { \
@@ -58,12 +53,6 @@
 	PORTB.PIN1CTRL = PORT_PULLUPEN_bm; \
 }
 
-#define CONFIGURE_IOPORTS() { \
-	CONFIGURE_OUTPUTS(); \
-	CONFIGURE_TWI_IO(); \
-}
-
-#define UNLOCK_PROTECTED_REGISTERS()	CCP = CCP_IOREG_gc
 #define F_CPU_TWI						F_CPU_FULLSPEED	/* Desired CPU clock during TWI operation */
 #define OVERRIDE_TWI_BAUD
 // #define TWI_BAUD_VALUE					20				/* fSCL = 100kHz, fCPU = 5 MHz */

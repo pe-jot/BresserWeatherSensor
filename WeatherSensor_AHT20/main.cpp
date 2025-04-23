@@ -224,7 +224,11 @@ void setup(void)
 	packetCount = 0;
 	id = rand() % 255;
 	
-	CONFIGURE_IOPORTS();
+	// Configure IO Ports
+	PORTA.DIRSET = TXPWR_BIT | TXPWR_GND_BIT | TX_PIN_BIT;
+	PORTA.OUTCLR = TXPWR_BIT | TXPWR_GND_BIT | TX_PIN_BIT;
+	PORTC.DIRSET = LED_BIT;
+	PORTC.OUTSET = LED_BIT;
 	
 	// Configure RTC to 4s PIT
 	while (RTC.STATUS != 0);
