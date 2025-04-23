@@ -33,7 +33,7 @@
 AHTX0 sensor;
 SerialDebugging debug;
 
-volatile uint8_t cmdEnterPowersave;
+volatile uint8_t cmdEnterPowerdown;
 volatile uint8_t cmdEnterStandby;
 volatile uint8_t cmdSleep;
 volatile uint8_t cmdReadEnvironmentData;
@@ -217,7 +217,7 @@ void setup(void)
 	configureFullSpeed();
 
 	cmdEnterStandby = 0;
-	cmdEnterPowersave = 0;
+	cmdEnterPowerdown = 0;
 	cmdSleep = 0;
 	cmdReadEnvironmentData = 0;
 	
@@ -260,14 +260,13 @@ void loop(void)
 		cmdSleep = 1;
 		cmdEnterStandby = 0;
 	}
-	else if (cmdEnterPowersave)
+	else if (cmdEnterPowerdown)
 	{
 		configureLowSpeed();
 		SLPCTRL.CTRLA = SLPCTRL_SMODE_PDOWN_gc | SLPCTRL_SEN_bm;
 		cmdSleep = 1;
-		cmdEnterPowersave = 0;
+		cmdEnterPowerdown = 0;
 	}
-
 	if (cmdSleep)
 	{
 		cmdSleep = 0;
@@ -315,7 +314,7 @@ void loop(void)
 	if (!cmdReadEnvironmentData && !TX_IN_PROGRESS && packetCount == 0)
 	{
 		TXPWR_OFF();
-		cmdEnterPowersave = 1;
+		cmdEnterPowerdown = 1;
 	}
 }
 
