@@ -50,18 +50,6 @@ uint8_t id;
 
 inline void configureFullSpeed(void)
 {
-	// Configure clock to 5 MHz
-	UNLOCK_PROTECTED_REGISTERS();
-	CLKCTRL.MCLKCTRLA = CLKCTRL_CLKSEL_OSC20M_gc;
-	UNLOCK_PROTECTED_REGISTERS();
-	CLKCTRL.MCLKCTRLB = CLKCTRL_PDIV_4X_gc | CLKCTRL_PEN_bm; // Clk/4 = 5 MHz
-	// Wait for clock being ready & stable
-	while ((CLKCTRL.MCLKSTATUS & (CLKCTRL_OSC20MS_bm | CLKCTRL_SOSC_bm)) != CLKCTRL_OSC20MS_bm);
-}
-
-
-inline void configureMediumSpeed(void)
-{
 	// Configure clock to 1 MHz
 	UNLOCK_PROTECTED_REGISTERS();
 	CLKCTRL.MCLKCTRLA = CLKCTRL_CLKSEL_OSC20M_gc;
@@ -316,7 +304,6 @@ void loop(void)
 		
 		// Initiate transmission
 		TXPWR_ON();
-		configureMediumSpeed();
 		packetCount = PACKET_COUNT;
 	}
 	

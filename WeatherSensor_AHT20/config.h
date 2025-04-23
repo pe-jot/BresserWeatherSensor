@@ -41,7 +41,7 @@
 #define TX_PIN_HIGH()					TX_PIN(OUTSET)
 #define TX_PIN_TOGGLE()					TX_PIN(OUTTGL)
 
-#define F_CPU_FULLSPEED					5000000UL
+#define F_CPU_FULLSPEED					1000000UL
 #define F_CPU							F_CPU_FULLSPEED
 #define F_CPU_USART						F_CPU_FULLSPEED /* Desired CPU clock during USART operation */
 
