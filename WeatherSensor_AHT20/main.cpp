@@ -14,7 +14,7 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include <stdlib.h>
-#include <math.h>
+#include <util/delay.h>
 
 #define ENABLE_DEBUG
 #include "Debug.h"
@@ -47,8 +47,6 @@ const uint8_t channel = 2;
 
 uint8_t packetCount;
 uint8_t id;
-float temperature;
-float humidity;
 
 
 inline void configureFullSpeed(void)
@@ -188,29 +186,27 @@ uint16_t fahrenheitToRaw(const int16_t in)
 }
 
 
-void assemblePacket(const uint8_t id, const uint8_t battLow, const uint8_t test, const uint8_t channel, const float temperature, const float humidity)
+void assemblePacket(const uint8_t id, const uint8_t battLow, const uint8_t test, const uint8_t channel, const int16_t temperature, const uint8_t humidity)
 {
-	uint8_t intHumidity = (uint8_t)round(humidity);
-	int16_t intTemperature = (int16_t)round(temperature * 10.0);
-	
 	DEBUG_BYTE('#');
 	DEBUG_VALUE(id);
 	DEBUG_BYTE('t');
-	DEBUG_VALUE(intTemperature);
+	DEBUG_VALUE(temperature);
 	DEBUG_BYTE('h');
-	DEBUG_VALUE(intHumidity);
+	DEBUG_VALUE(humidity);
 	
-	if ((channel == 0) || (intHumidity > 100) || (intTemperature < -677) || (intTemperature > 1590))
+	if ((channel == 0) || (humidity > 100) || (temperature < -677) || (temperature > 1590))
 	{
 		return;
 	}
 	
-	uint16_t temperatureRaw = fahrenheitToRaw(centigradeToFahrenheit(intTemperature));
+	int16_t temperatureFahrenheit = (temperature * 18 / 10) + 320;
+	uint16_t temperatureRaw = temperatureFahrenheit + 900;
 	
 	txBuffer[0] = id;
 	txBuffer[1] = ((battLow & 0x1) << 7) | ((test & 0x1) << 6) | ((channel & 0x3) << 4) | ((temperatureRaw >> 8) & 0xF);
 	txBuffer[2] = (temperatureRaw & 0x00FF);
-	txBuffer[3] = intHumidity;
+	txBuffer[3] = humidity;
 	txBuffer[4] = (txBuffer[0] + txBuffer[1] + txBuffer[2] + txBuffer[3]) % 256;
 	txBuffer[5] = 0;
 }
@@ -228,9 +224,6 @@ void setup(void)
 	packetCount = 0;
 	id = rand() % 255;
 	
-	temperature = NAN;
-	humidity = NAN;
-
 	CONFIGURE_IOPORTS();
 	
 	// Configure RTC to 4s PIT
@@ -296,15 +289,22 @@ void loop(void)
 	{
 		cmdReadEnvironmentData = 0;
 		
-		// CPU is configured to full speed at interrupt level already.
-		temperature = NAN;
-		humidity = NAN;
-		if (!sensor.read(humidity, temperature)) // Returns centigrade
+		// CPU is configured to full speed at interrupt level already...
+		if (!sensor.triggerRead())
 		{
 			LED_ON();
 			while(1);
 		}
-		assemblePacket(id, batteryLow, testButtonPressed, channel, temperature, humidity);
+		while (sensor.isBusy())
+		{
+			// cmdEnterStandby = 1;
+			_delay_ms(50);
+		}
+		
+		int32_t temperature;
+		uint32_t humidity;
+		sensor.readData(humidity, temperature); // Returns 1/10 centigrade
+		assemblePacket(id, batteryLow, testButtonPressed, channel, (int16_t)temperature, (uint8_t)humidity);
 		
 		// Initiate transmission
 		TXPWR_ON();

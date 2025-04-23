@@ -19,8 +19,6 @@ bool AHTX0::begin(const uint8_t i2c_address)
 	_delay_ms(20); // 20 ms to power up
 
 	TWI_MasterInit(100000); // Standard mode
-	// TWI_MasterInit(400000); // Fast mode
-	// TWI_MasterInit(1000000); // Fast mode plus
 
 	uint8_t cmd[3];
 
@@ -62,19 +60,38 @@ uint8_t AHTX0::getStatus()
 }
 
 
-bool AHTX0::read(float &humidity, float &temperature)
+bool AHTX0::isBusy()
+{
+	return (getStatus() & AHTX0_STATUS_BUSY) == AHTX0_STATUS_BUSY;
+}
+
+
+bool AHTX0::triggerRead()
 {
 	uint8_t cmd[3] = { AHTX0_CMD_TRIGGER, 0x33, 0 };
 	if (TWI_MasterWrite(mAddress, cmd, 3, TWIM_SEND_STOP) != 0)
 	{
 		return false;
 	}
-	
-	while (getStatus() & AHTX0_STATUS_BUSY)
-	{
-		_delay_ms(10);
-	}
+	return true;
+}
 
+
+void AHTX0::readData(uint32_t &humidity, int32_t &temperature)
+{
+	uint8_t data[6];
+	TWI_MasterRead(mAddress, data, 6, TWIM_SEND_STOP);
+	
+	uint32_t srh = (data[1] * 0x1000) + (data[2] * 0x10) + (data[3] / 0x10);	
+	humidity = (uint32_t)srh * (uint32_t)100 / (uint32_t)0x100000;
+	
+	uint32_t st = ((data[3] & 0x0F) * 0x10000) + (data[4] * 0x100) + data[5];
+	temperature = (int32_t)st * (int32_t)2000 / (int32_t)0x100000 - (int32_t)500;
+}
+
+
+void AHTX0::readData(float &humidity, float &temperature)
+{
 	uint8_t data[6];
 	TWI_MasterRead(mAddress, data, 6, TWIM_SEND_STOP);
 	
@@ -91,6 +108,19 @@ bool AHTX0::read(float &humidity, float &temperature)
 	tdata <<= 8;
 	tdata |= data[5];
 	temperature = ((float)tdata * 200 / 0x100000) - 50;
+}
 
+
+bool AHTX0::read(float &humidity, float &temperature)
+{
+	if (!triggerRead())
+	{
+		return false;
+	}
+	while (isBusy())
+	{
+		_delay_ms(10);
+	}
+	readData(humidity, temperature);
 	return true;
 }

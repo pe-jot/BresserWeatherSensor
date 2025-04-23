@@ -10,6 +10,10 @@ class AHTX0
 public:
 	bool begin(const uint8_t i2c_address = AHTX0_I2CADDR_DEFAULT);
 	bool read(float &humidity, float &temperature);
+	void readData(float &humidity, float &temperature);
+	void readData(uint32_t &humidity, int32_t &temperature);
+	bool triggerRead();
+	bool isBusy();
 	
 private:
 	uint8_t getStatus();
