@@ -42,7 +42,6 @@ volatile uint8_t currentByte;
 volatile uint8_t currentBit;
 
 const uint8_t testButtonPressed = 0;
-const uint8_t batteryLow = 0;
 const uint8_t channel = 2;
 
 uint8_t packetCount;
@@ -224,6 +223,11 @@ void setup(void)
 	packetCount = 0;
 	id = rand() % 255;
 	
+	// Configure voltage monitoring
+	// Loaded from fuse: BOD.CTRLA = BOD_SAMPFREQ_125Hz_gc | BOD_ACTIVE_SAMPLED_gc | BOD_SLEEP_DIS_gc;
+	// Loaded from fuse: BOD.CTRLB = BOD_LVL_BODLEVEL0_gc; // BOD 1.8V
+	BOD.VLMCTRLA = BOD_VLMLVL_25ABOVE_gc; // VLM threshold: BOD+25%
+
 	// Configure IO Ports
 	PORTA.DIRSET = TXPWR_BIT | TXPWR_GND_BIT | TX_PIN_BIT;
 	PORTA.OUTCLR = TXPWR_BIT | TXPWR_GND_BIT | TX_PIN_BIT;
@@ -307,6 +311,7 @@ void loop(void)
 		int32_t temperature;
 		uint32_t humidity;
 		sensor.readData(humidity, temperature); // Returns 1/10 centigrade
+		const uint8_t batteryLow = BOD.STATUS & BOD_VLMS_bm;
 		assemblePacket(id, batteryLow, testButtonPressed, channel, (int16_t)temperature, (uint8_t)humidity);
 		
 		// Initiate transmission
