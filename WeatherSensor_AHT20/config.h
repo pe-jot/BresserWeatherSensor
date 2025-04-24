@@ -45,6 +45,10 @@
 #define F_CPU							F_CPU_FULLSPEED
 #define F_CPU_USART						F_CPU_FULLSPEED /* Desired CPU clock during USART operation */
 
+#define TCB0_RUNNING					(TCB0.STATUS & TCB_RUN_bm)
+#define START_TCB0						TCB0.CTRLA |= TCB_ENABLE_bm
+#define STOP_TCB0						TCB0.CTRLA &= ~TCB_ENABLE_bm
+
 #define UNLOCK_PROTECTED_REGISTERS()	CCP = CCP_IOREG_gc
 
 /* Used by TWI library */
@@ -58,3 +62,14 @@
 // #define TWI_BAUD_VALUE					20				/* fSCL = 100kHz, fCPU = 5 MHz */
 // #define TWI_BAUD_VALUE					3				/* fSCL = 400kHz, fCPU = 5 MHz */
 #define TWI_BAUD_VALUE					0				/* fSCL = 100kHz, fCPU = 1 MHz */
+
+enum OperationStates {	
+	PREPARE_POWERDOWN = 0,
+	WAIT_FOR_READ,
+	TRIGGER_SENSOR_READ,
+	WAIT_FOR_SENSOR,
+	READ_SENSOR,
+	INIT_NEXT_TX_PACKET,
+	WAIT_FOR_PACKET_TRANSMITTED,
+	ERROR
+};

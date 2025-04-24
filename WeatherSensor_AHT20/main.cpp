@@ -27,28 +27,21 @@
 #define PACKET_LENGTH_BITS				(DATA_BITS + PREAMBLE_BITS)
 #define PACKET_LENGTH_BYTES				(PACKET_LENGTH_BITS / BITS_PER_BYTE)
 #define PACKET_COUNT					15
-#define TX_IN_PROGRESS					(TCB0.STATUS & TCB_RUN_bm)
 
 
 AHTX0 sensor;
 SerialDebugging debug;
 
-volatile uint8_t cmdEnterPowerdown;
-volatile uint8_t cmdEnterStandby;
-volatile uint8_t cmdSleep;
-volatile uint8_t cmdReadEnvironmentData;
+typedef void (*FPinterruptHandler)(void);
+volatile FPinterruptHandler fpInterruptHandler;
+
+volatile enum OperationStates opState;
 volatile uint8_t txBuffer[PACKET_LENGTH_BYTES];
 volatile uint8_t currentByte;
 volatile uint8_t currentBit;
 
-const uint8_t testButtonPressed = 0;
-const uint8_t channel = 2;
 
-uint8_t packetCount;
-uint8_t id;
-
-
-inline void configureFullSpeed(void)
+void configureFullSpeed(void)
 {
 	// Configure clock to 1 MHz
 	UNLOCK_PROTECTED_REGISTERS();
@@ -60,7 +53,7 @@ inline void configureFullSpeed(void)
 }
 
 
-inline void configureLowSpeed(void)
+void configureLowSpeed(void)
 {
 	// Configure clock to 32 kHz
 	UNLOCK_PROTECTED_REGISTERS();
@@ -79,14 +72,8 @@ ISR(RTC_PIT_vect) // Every 4s - first interval is undefined (anything between 0.
 	
 	if (--pitCycleCount == 0)
 	{
-		configureFullSpeed();
-		cmdReadEnvironmentData = 1;
+		opState = TRIGGER_SENSOR_READ;
 		pitCycleCount = 15;
-	}
-	else
-	{
-		// Don't touch anything, just go back to sleep again
-		cmdSleep = 1;
 	}
 
 	RTC.PITINTFLAGS = RTC_PI_bm;
@@ -94,13 +81,25 @@ ISR(RTC_PIT_vect) // Every 4s - first interval is undefined (anything between 0.
 }
 
 
-ISR(TCB0_INT_vect) // Every 250탎 @ 1 MHz - could be named TCB0_CAPT_vect as well :-/
+ISR(TCB0_INT_vect)
+{
+	uint8_t sreg = SREG;
+	
+	if (fpInterruptHandler)
+	{
+		fpInterruptHandler();
+	}
+	
+	TCB0.INTFLAGS = TCB_CAPT_bm;
+	SREG = sreg;
+}
+
+
+void transmit_handler()
 {
 	static uint8_t temp = 0;
 	static uint8_t cycle = 0;
 	static int8_t currentBitValue = -1;
-	
-	uint8_t sreg = SREG;
 	
 	if (cycle == 0)
 	{
@@ -137,8 +136,8 @@ ISR(TCB0_INT_vect) // Every 250탎 @ 1 MHz - could be named TCB0_CAPT_vect as wel
 			if (currentBit >= PACKET_LENGTH_BITS)
 			{
 				currentBit = 0;
-				// Stop TX
-				TCB0.CTRLA &= ~TCB_ENABLE_bm; // Stop Timer
+				// Packet sending complete
+				STOP_TCB0();
 				TX_PIN_LOW();
 			}
 		}
@@ -149,27 +148,6 @@ ISR(TCB0_INT_vect) // Every 250탎 @ 1 MHz - could be named TCB0_CAPT_vect as wel
 	{
 		cycle = 0;
 	}
-	
-	if (TX_IN_PROGRESS)
-	{
-		// Only enter standby while we have to wait for the next bit to send
-		cmdEnterStandby = 1;
-	}
-	
-	TCB0.INTFLAGS = TCB_CAPT_bm;
-	SREG = sreg;
-}
-
-
-int16_t centigradeToFahrenheit(const int16_t in)
-{
-	return (in * 18 / 10) + 320;
-}
-
-
-uint16_t fahrenheitToRaw(const int16_t in)
-{
-	return in + 900;
 }
 
 
@@ -203,13 +181,7 @@ void setup(void)
 {
 	configureFullSpeed();
 
-	cmdEnterStandby = 0;
-	cmdEnterPowerdown = 0;
-	cmdSleep = 0;
-	cmdReadEnvironmentData = 0;
-	
-	packetCount = 0;
-	id = rand() % 255;
+	opState = PREPARE_POWERDOWN;
 	
 	// Configure voltage monitoring
 	// Loaded from fuse: BOD.CTRLA = BOD_SAMPFREQ_125Hz_gc | BOD_ACTIVE_SAMPLED_gc | BOD_SLEEP_DIS_gc;
@@ -229,10 +201,12 @@ void setup(void)
 	while ((RTC.PITSTATUS & RTC_CTRLBUSY_bm) != 0);
 	RTC.PITCTRLA = RTC_PERIOD_CYC4096_gc | RTC_PITEN_bm;
 	
-	// Configure TCB0 to 250 탎 interrupt (@ 1 MHz). Only the simpler TCBn is capable of running in Idle & Standby Sleep Modes
+	// Only the simpler TCBn is capable of running in Idle & Standby sleep modes.
+	// Unfortunately, ATtiny816 has only one TCB, so we need to switch between the two different functions in software.
+	// Common TCB0 configuration
 	TCB0.CTRLA = TCB_RUNSTDBY_bm;
+	TCB0.CTRLB = TCB_CNTMODE_INT_gc;
 	TCB0.INTCTRL = TCB_CAPT_bm;
-	TCB0.CCMP = 250;
 	
 #ifdef ENABLE_DEBUG
 	debug.begin();
@@ -242,75 +216,106 @@ void setup(void)
 	
 	if (!sensor.begin())
 	{
-		LED_ON();
-		while(1);
+		opState = ERROR;
 	}
 }
 
 
 void loop(void)
 {
-	if (cmdEnterStandby)
-	{
-		SLPCTRL.CTRLA = SLPCTRL_SMODE_STDBY_gc | SLPCTRL_SEN_bm;
-		cmdSleep = 1;
-		cmdEnterStandby = 0;
-	}
-	else if (cmdEnterPowerdown)
-	{
-		configureLowSpeed();
-		SLPCTRL.CTRLA = SLPCTRL_SMODE_PDOWN_gc | SLPCTRL_SEN_bm;
-		cmdSleep = 1;
-		cmdEnterPowerdown = 0;
-	}
-	if (cmdSleep)
-	{
-		cmdSleep = 0;
-		sleep_cpu();
-		return;
-	}
+	static uint8_t packetCount = 0;
+	static uint8_t id = rand() % 255;
+	static uint8_t testButtonPressed = 1;
 	
-	if (packetCount > 0 && !TX_IN_PROGRESS)
+	switch (opState)
 	{
-		// Start TX
-		currentBit = 0;
-		currentByte = 0;
-		TX_PIN_LOW();
-		TCB0.CTRLA |= TCB_ENABLE_bm; // Start Timer
-		--packetCount;
-	}
-
-	if (cmdReadEnvironmentData && packetCount == 0)
-	{
-		cmdReadEnvironmentData = 0;
-		
-		// CPU is configured to full speed at interrupt level already...
-		if (!sensor.triggerRead())
-		{
+		case PREPARE_POWERDOWN:
+			configureLowSpeed();
+			SLPCTRL.CTRLA = SLPCTRL_SMODE_PDOWN_gc | SLPCTRL_SEN_bm;
+			opState = WAIT_FOR_READ;
+			
+		case WAIT_FOR_READ:
+			sleep_cpu();
+			break;
+			
+		case TRIGGER_SENSOR_READ:
+			configureFullSpeed();
+			if (!sensor.triggerRead())
+			{
+				opState = ERROR;
+			}
+			// Prepare for standby sleep mode
+			SLPCTRL.CTRLA = SLPCTRL_SMODE_STDBY_gc | SLPCTRL_SEN_bm;
+			// Configure TCB0 to 50ms interrupt (@ 1 MHz). 
+			fpInterruptHandler = 0;
+			TCB0.CCMP = 50000;
+			START_TCB0();
+			opState = WAIT_FOR_SENSOR;
+			
+		case WAIT_FOR_SENSOR:
+			sleep_cpu();
+			if (!sensor.isBusy())
+			{
+				STOP_TCB0();
+				opState = READ_SENSOR;
+			}
+			break;
+			
+		case READ_SENSOR:
+			{
+				int32_t temperature;
+				uint32_t humidity;
+				sensor.readData(humidity, temperature); // Returns 1/10 centigrade
+				
+				const uint8_t batteryLow = BOD.STATUS & BOD_VLMS_bm;
+				const uint8_t channel = 2;
+				assemblePacket(id, batteryLow, testButtonPressed, channel, (int16_t)temperature, (uint8_t)humidity);
+				
+				testButtonPressed = 0; // Only set the first time
+			}
+			// Initiate transmission
+			TXPWR_ON();
+			packetCount = PACKET_COUNT;
+			// Prepare for standby sleep mode
+			SLPCTRL.CTRLA = SLPCTRL_SMODE_STDBY_gc | SLPCTRL_SEN_bm;
+			// Configure TCB0 to 250 탎 periodic interrupt (@ 1 MHz).
+			fpInterruptHandler = transmit_handler;
+			TCB0.CCMP = 250;
+			opState = INIT_NEXT_TX_PACKET;
+			
+		case INIT_NEXT_TX_PACKET:
+			currentBit = 0;
+			currentByte = 0;
+			TX_PIN_LOW();	
+			START_TCB0();
+			--packetCount;
+			opState = WAIT_FOR_PACKET_TRANSMITTED;
+			
+		case WAIT_FOR_PACKET_TRANSMITTED:
+			if (TCB0_RUNNING)
+			{
+				// Let interrupt handler do its job
+				sleep_cpu();
+			}
+			else
+			{
+				if (packetCount > 0)
+				{
+					opState = INIT_NEXT_TX_PACKET;
+				}
+				else
+				{
+					// Entire transmission finished
+					TXPWR_OFF();
+					opState = PREPARE_POWERDOWN;
+				}
+			}
+			break;
+			
+		case ERROR:
 			LED_ON();
+			configureLowSpeed();
 			while(1);
-		}
-		while (sensor.isBusy())
-		{
-			// cmdEnterStandby = 1;
-			_delay_ms(50);
-		}
-		
-		int32_t temperature;
-		uint32_t humidity;
-		sensor.readData(humidity, temperature); // Returns 1/10 centigrade
-		const uint8_t batteryLow = BOD.STATUS & BOD_VLMS_bm;
-		assemblePacket(id, batteryLow, testButtonPressed, channel, (int16_t)temperature, (uint8_t)humidity);
-		
-		// Initiate transmission
-		TXPWR_ON();
-		packetCount = PACKET_COUNT;
-	}
-	
-	if (!cmdReadEnvironmentData && !TX_IN_PROGRESS && packetCount == 0)
-	{
-		TXPWR_OFF();
-		cmdEnterPowerdown = 1;
 	}
 }
 
