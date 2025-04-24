@@ -46,8 +46,8 @@
 #define F_CPU_USART						F_CPU_FULLSPEED /* Desired CPU clock during USART operation */
 
 #define TCB0_RUNNING					(TCB0.STATUS & TCB_RUN_bm)
-#define START_TCB0						TCB0.CTRLA |= TCB_ENABLE_bm
-#define STOP_TCB0						TCB0.CTRLA &= ~TCB_ENABLE_bm
+#define START_TCB0()					TCB0.CTRLA |= TCB_ENABLE_bm
+#define STOP_TCB0()						TCB0.CTRLA &= ~TCB_ENABLE_bm
 
 #define UNLOCK_PROTECTED_REGISTERS()	CCP = CCP_IOREG_gc
 

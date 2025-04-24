@@ -14,7 +14,6 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include <stdlib.h>
-#include <util/delay.h>
 
 #define ENABLE_DEBUG
 #include "Debug.h"
@@ -39,6 +38,10 @@ volatile enum OperationStates opState;
 volatile uint8_t txBuffer[PACKET_LENGTH_BYTES];
 volatile uint8_t currentByte;
 volatile uint8_t currentBit;
+
+static uint8_t packetCount = 0;
+static uint8_t id = rand() % 255;
+static uint8_t testButtonPressed = 1;
 
 
 void configureFullSpeed(void)
@@ -223,9 +226,6 @@ void setup(void)
 
 void loop(void)
 {
-	static uint8_t packetCount = 0;
-	static uint8_t id = rand() % 255;
-	static uint8_t testButtonPressed = 1;
 	
 	switch (opState)
 	{
