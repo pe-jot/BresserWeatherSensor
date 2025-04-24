@@ -69,7 +69,7 @@ static volatile TWI_MODE_t twi_mode;
  *
  *  \param frequency				    The required baud.
  */
-void TWI_MasterInit(uint32_t frequency)
+void TWI_MasterInit()
 {
 	if(twi_mode != TWI_MODE_UNKNOWN) return;
 	
@@ -84,7 +84,7 @@ void TWI_MasterInit(uint32_t frequency)
 	master_result = TWIM_RESULT_UNKNOWN;
 	
 	TWI0.MCTRLA = TWI_RIEN_bm | TWI_WIEN_bm | TWI_ENABLE_bm;
-	TWI_MasterSetBaud(frequency);
+	TWI_MasterSetBaud();
 	TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
 }
 
@@ -175,43 +175,43 @@ uint8_t TWI_MasterReady(void)
 	return twi_status;
 }
 
+
 /*! \brief Set the TWI baud rate.
  *
  *  Sets the baud rate used by TWI Master.
  *
  *  \param frequency				    The required baud.
  */
-void TWI_MasterSetBaud(uint32_t frequency){
-#ifdef OVERRIDE_TWI_BAUD
-	TWI0.MBAUD = TWI_BAUD_VALUE;
-#else
-//		Formula is: BAUD = ((F_CLKPER/frequency) - F_CLKPER*T_RISE - 10)/2;
-//		Where T_RISE varies depending on operating frequency...
-//			From 1617 DS: 1000ns @ 100kHz / 300ns @ 400kHz / 120ns @ 1MHz
+void TWI_MasterSetBaud(void){
+#ifndef OVERRIDE_TWI_BAUD
+// See Datasheet / Electrical Characteristics. F values in Hertz, T values in nanoseconds
+#  if (F_SCL) <= 100000
+#    define T_RISE			1000
+#    define T_LOW_MIN		4700
+#    define T_OF			250
+#  elif (F_SCL) <= 400000
+#    define T_RISE			300
+#    define T_LOW_MIN		1300
+#    define T_OF			250
+#  elif (F_SCL) <= 1000000
+#    define T_RISE			120
+#    define T_LOW_MIN		500
+#    define T_OF			120
+#  else
+#    error "TWI SCL frequency outside specifications!"
+#  endif
 
-	uint16_t t_rise;
-	
-	if(frequency < 200000){
-		frequency = 100000;
-		t_rise = 1000;
-		
-	} else if (frequency < 800000){
-		frequency = 400000;
-		t_rise = 300;	
+#  define TWI_BAUD_VALUE	(((F_CPU) / (2 * (F_SCL))) - (5 + ((F_CPU) * ((T_RISE) / 1000000000) / 2)))
+#  define T_LOW				((((TWI_BAUD_VALUE) + 5) / (F_CPU)) - ((T_OF) / 1000000000))
 
-	} else if (frequency < 1200000){
-		frequency = 1000000;
-		t_rise = 120;
-		
-	} else {
-		frequency = 100000;
-		t_rise = 1000;
-	}
-	
-	uint32_t baud = (F_CPU_TWI / frequency - F_CPU_TWI / 1000 / 1000 * t_rise / 1000 - 10) / 2;
-	TWI0.MBAUD = (uint8_t)baud;
+#  if (T_LOW) < (T_LOW_MIN)
+#    undef TWI_BAUD_VALUE
+#    define TWI_BAUD_VALUE	((F_CPU) * ((T_LOW_MIN) + ((T_OF) / 1000000000)) - 5)
+#  endif
 #endif
+	TWI0.MBAUD = (uint8_t)TWI_BAUD_VALUE;
 }
+
 
 /*! \brief TWI write transaction.
  *

@@ -18,7 +18,7 @@ bool AHTX0::begin(const uint8_t i2c_address)
 	mAddress = i2c_address;
 	_delay_ms(20); // 20 ms to power up
 
-	TWI_MasterInit(100000); // Standard mode
+	TWI_MasterInit();
 
 	uint8_t cmd[3];
 

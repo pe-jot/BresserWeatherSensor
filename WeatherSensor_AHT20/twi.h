@@ -72,13 +72,13 @@ typedef enum TWI_MODE_enum {
 #define ADD_READ_BIT(address)	(address | 0x01)
 #define ADD_WRITE_BIT(address)  (address & ~0x01)
 
-void TWI_MasterInit(uint32_t frequency);
+void TWI_MasterInit(void);
 void TWI_SlaveInit(uint8_t address);
 void TWI_Flush(void);
 void TWI_Disable(void);
 TWI_BUSSTATE_t TWI_MasterState(void);
 uint8_t TWI_MasterReady(void);
-void TWI_MasterSetBaud(uint32_t frequency);
+void TWI_MasterSetBaud(void);
 uint8_t TWI_MasterWrite(uint8_t slave_address,
                      uint8_t *write_data,
                      uint8_t bytes_to_write,
