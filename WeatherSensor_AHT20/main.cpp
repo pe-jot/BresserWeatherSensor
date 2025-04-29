@@ -1,13 +1,3 @@
-
-/*
- * Operation states:
- * Init			=> Full / Run
- * ReadEnv		=> Full / Run
- * Send/Calc	=> Mid / Run
- * Send/Wait	=> Mid-Low / Stby
- * Idle			=> X / PowerDown
- */
-
 #include "config.h"
 
 #include <avr/io.h>
@@ -186,9 +176,11 @@ void setup(void)
 
 	opState = PREPARE_POWERDOWN;
 	
-	// Configure voltage monitoring
-	// Loaded from fuse: BOD.CTRLA = BOD_SAMPFREQ_125Hz_gc | BOD_ACTIVE_SAMPLED_gc | BOD_SLEEP_DIS_gc;
-	// Loaded from fuse: BOD.CTRLB = BOD_LVL_BODLEVEL0_gc; // BOD 1.8V
+	// Configure voltage monitoring (configured via fuse)
+	// BODCFG = (0x0 << 5) | (1 << 4) | (0x2 << 2) | (0x0 << 0) = 0x18;
+	// avrdude -c serialupdi -p t816 -P COM3 -U fuse1:w:0x18:m (READ all fuses would be: -U fuses:r:-:h)
+	// BOD.CTRLA = BOD_SAMPFREQ_125Hz_gc | BOD_ACTIVE_SAMPLED_gc | BOD_SLEEP_DIS_gc;
+	// BOD.CTRLB = BOD_LVL_BODLEVEL0_gc; // BOD 1.8V
 	BOD.VLMCTRLA = BOD_VLMLVL_25ABOVE_gc; // VLM threshold: BOD+25%
 
 	// Configure IO Ports
@@ -213,7 +205,7 @@ void setup(void)
 	
 #ifdef ENABLE_DEBUG
 	debug.begin();
-#endif	
+#endif
 
 	sei();
 	

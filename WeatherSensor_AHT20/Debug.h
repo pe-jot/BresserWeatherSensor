@@ -9,13 +9,12 @@
 
 #include "config.h"
 
-#define F_CLK_PER						F_CPU_FULLSPEED
 #define BAUD_RATE						115200UL
 #define USE_CLK2X						1
 
-#define BAUD_VALUE 						((64UL * (F_CLK_PER)) / ((USE_CLK2X ? 8UL : 16UL) * (BAUD_RATE)))
+#define BAUD_VALUE 						((64UL * (F_CPU_UART)) / ((USE_CLK2X ? 8UL : 16UL) * (BAUD_RATE)))
 
-#if BAUD_VALUE < 64
+#if BAUD_VALUE < 64 || BAUD_VALUE > 65535
 #  error "Achieved baud rate invalid!"
 #endif
 

@@ -41,9 +41,11 @@
 #define TX_PIN_HIGH()					TX_PIN(OUTSET)
 #define TX_PIN_TOGGLE()					TX_PIN(OUTTGL)
 
+/* NOTE: OSCCFG fuse must be set to 0x01 in order to get 16 MHz clock which can be scaled down to 1 MHz (there is no :20 divider) */
+/* avrdude-c serialupdi -p t816 -P COM3 -U fuse2:w:0x01:m */
 #define F_CPU_FULLSPEED					1000000UL
 #define F_CPU							F_CPU_FULLSPEED
-#define F_CPU_USART						F_CPU_FULLSPEED /* Desired CPU clock during USART operation */
+#define F_CPU_UART						F_CPU_FULLSPEED /* Desired CPU clock during USART operation */
 
 #define TCB0_RUNNING					(TCB0.STATUS & TCB_RUN_bm)
 #define START_TCB0()					TCB0.CTRLA |= TCB_ENABLE_bm
