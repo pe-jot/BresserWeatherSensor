@@ -5,7 +5,7 @@
 #include <avr/interrupt.h>
 #include <stdlib.h>
 
-#define ENABLE_DEBUG
+// #define ENABLE_DEBUG
 #include "Debug.h"
 #include "AHTX0.h"						// Original source: https://github.com/adafruit/Adafruit_AHTX0
 
@@ -29,9 +29,10 @@ volatile uint8_t txBuffer[PACKET_LENGTH_BYTES];
 volatile uint8_t currentByte;
 volatile uint8_t currentBit;
 
-static uint8_t packetCount = 0;
-static uint8_t id = rand() % 255;
-static uint8_t testButtonPressed = 1;
+static uint8_t packetCount;
+static uint8_t id;
+
+const uint8_t sensorChannel = 2;
 
 
 void configureFullSpeed(void)
@@ -170,10 +171,28 @@ void assemblePacket(const uint8_t id, const uint8_t battLow, const uint8_t test,
 }
 
 
+void prepareSensorData()
+{
+	static uint8_t testButtonPressed = 1;
+	
+	int32_t temperature;
+	uint32_t humidity;
+	sensor.readData(humidity, temperature); // Returns 1/10 centigrade
+	
+	const uint8_t batteryLow = BOD.STATUS & BOD_VLMS_bm;
+	assemblePacket(id, batteryLow, testButtonPressed, sensorChannel, (int16_t)temperature, (uint8_t)humidity);
+	
+	testButtonPressed = 0; // Only set the first time
+}
+
+
 void setup(void)
 {
 	configureFullSpeed();
 
+	srand(42 * sensorChannel);
+	id = rand() % 255; // Actually, it's not random :-/
+	packetCount = 0;
 	opState = PREPARE_POWERDOWN;
 	
 	// Configure voltage monitoring (configured via fuse)
@@ -254,17 +273,7 @@ void loop(void)
 			break;
 			
 		case READ_SENSOR:
-			{
-				int32_t temperature;
-				uint32_t humidity;
-				sensor.readData(humidity, temperature); // Returns 1/10 centigrade
-				
-				const uint8_t batteryLow = BOD.STATUS & BOD_VLMS_bm;
-				const uint8_t channel = 2;
-				assemblePacket(id, batteryLow, testButtonPressed, channel, (int16_t)temperature, (uint8_t)humidity);
-				
-				testButtonPressed = 0; // Only set the first time
-			}
+			prepareSensorData();
 			// Initiate transmission
 			TXPWR_ON();
 			packetCount = PACKET_COUNT;
