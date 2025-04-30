@@ -22,10 +22,12 @@
   #define DEBUG_TEXT					debug.sendText
   #define DEBUG_BYTE					debug.sendByte
   #define DEBUG_VALUE					debug.sendValue
+  #define DEBUG_HEX						debug.sendHexValue
 #else
   #define DEBUG_TEXT					(void)
   #define DEBUG_BYTE					(void)
   #define DEBUG_VALUE					(void)
+  #define DEBUG_HEX						(void)
 #endif
 
 class SerialDebugging
@@ -37,4 +39,5 @@ public:
 	void sendByte(const uint8_t character);
 	void sendText(const char* text);
 	void sendValue(const int16_t value);
+	void sendHexValue(const uint32_t value);
 };

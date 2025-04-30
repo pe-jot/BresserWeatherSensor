@@ -46,6 +46,14 @@ void SerialDebugging::sendValue(const int16_t value)
 }
 
 
+void SerialDebugging::sendHexValue(const uint32_t value)
+{
+	char buffer[9];
+	itoa(value, buffer, 16);
+	sendText(buffer);
+}
+
+
 void SerialDebugging::begin()
 {
 	// Port mapping verified for ATtiny816
