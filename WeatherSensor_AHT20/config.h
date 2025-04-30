@@ -60,9 +60,8 @@
 }
 
 #define F_CPU_TWI						F_CPU_FULLSPEED	/* Desired CPU clock during TWI operation */
+#define F_SCL							100000UL
 #define OVERRIDE_TWI_BAUD
-// #define TWI_BAUD_VALUE					20				/* fSCL = 100kHz, fCPU = 5 MHz */
-// #define TWI_BAUD_VALUE					3				/* fSCL = 400kHz, fCPU = 5 MHz */
 #define TWI_BAUD_VALUE					0				/* fSCL = 100kHz, fCPU = 1 MHz */
 
 enum OperationStates {	
