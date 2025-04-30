@@ -77,15 +77,21 @@ bool AHTX0::triggerRead()
 }
 
 
+void AHTX0::readData(uint8_t *pData)
+{
+	TWI_MasterRead(mAddress, pData, 6, TWIM_SEND_STOP);
+}
+
+
 void AHTX0::readData(uint32_t &humidity, int32_t &temperature)
 {
 	uint8_t data[6];
 	TWI_MasterRead(mAddress, data, 6, TWIM_SEND_STOP);
 	
-	uint32_t srh = (data[1] * 0x1000) + (data[2] * 0x10) + (data[3] / 0x10);	
+	uint32_t srh = ((uint32_t)data[1] * 0x1000) + ((uint32_t)data[2] * 0x10) + (data[3] / 0x10);
 	humidity = (uint32_t)srh * (uint32_t)100 / (uint32_t)0x100000;
 	
-	uint32_t st = ((data[3] & 0x0F) * 0x10000) + (data[4] * 0x100) + data[5];
+	uint32_t st = ((uint32_t)(data[3] & 0x0F) * 0x10000) + ((uint32_t)data[4] * 0x100) + data[5];
 	temperature = (int32_t)st * (int32_t)2000 / (int32_t)0x100000 - (int32_t)500;
 }
 

@@ -12,6 +12,7 @@ public:
 	bool read(float &humidity, float &temperature);
 	void readData(float &humidity, float &temperature);
 	void readData(uint32_t &humidity, int32_t &temperature);
+	void readData(uint8_t *pData);
 	bool triggerRead();
 	bool isBusy();
 	
