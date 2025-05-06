@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "config.h"
+#include "deviceconfig.h"
 
 #define BAUD_RATE						115200UL
 #define USE_CLK2X						1

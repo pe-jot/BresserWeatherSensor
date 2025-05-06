@@ -23,7 +23,7 @@
 #define TWI_DRIVER_H
 
 #include <avr/io.h>
-#include "config.h"
+#include "deviceconfig.h"
 
 #define TWIM_SEND_STOP					1
 

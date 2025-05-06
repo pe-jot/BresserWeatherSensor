@@ -1,4 +1,4 @@
-#include "config.h"
+#include "deviceconfig.h"
 
 #include <avr/io.h>
 #include <avr/sleep.h>
@@ -18,6 +18,21 @@
 #define PACKET_COUNT					15
 
 
+const uint8_t sensorChannel = 3;
+
+
+enum OperationStates {	
+	PREPARE_POWERDOWN = 0,
+	WAIT_FOR_READ,
+	TRIGGER_SENSOR_READ,
+	WAIT_FOR_SENSOR,
+	READ_SENSOR,
+	INIT_NEXT_TX_PACKET,
+	WAIT_FOR_PACKET_TRANSMITTED,
+	ERROR
+};
+
+
 AHTX0 sensor;
 SerialDebugging debug;
 
@@ -31,8 +46,6 @@ volatile uint8_t currentBit;
 
 static uint8_t packetCount;
 static uint8_t id;
-
-const uint8_t sensorChannel = 2;
 
 
 void configureFullSpeed(void)
