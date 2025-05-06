@@ -1,0 +1,89 @@
+
+Manufacturer Advertising Data: (see https://shelly-api-docs.shelly.cloud/docs-ble/common)
+=====================
+A9 0B (Allterco MFID 0x0BA9)
+01 01 00 0B 03 00 0A A0 E3 61 B6 C6 7C
+|        |        |
+|        |        MAC address
+|        Shelly device model ID
+Shelly bitfield flags
+
+
+BTHome Payload: (see https://bthome.io/format/)
+=====================
+02 01 06
+|  |
+|  Type: Flags
+Length
+
+
+Service Data Header:
+=====================
+0A 16 FC D2 .. .. ..
+|  |
+|  Type: Service Data
+Length
+
+
+BTHome Service Advertising Data: (see https://shelly-api-docs.shelly.cloud/docs-ble/Devices/ht/)
+=====================
+@ 1min:
+---------------------
+D2 FC (BTHome UUID 0xFCD2)
+44 00 1F 01 64 2E 24 45 FA 00
+|  |     |     |     |
+|  |     |     |     Temperature (sint16, consider byte order!) [0.1°C]
+|  |     |     Humidity [%]
+|  |     Battery level [%]
+|  Packet ID
+Flags (need to check for BTHome version 2!)
+
+
+@ button press:
+---------------------
+D2 FC
+44 00 30 01 64 2E 24 3A 01 45 F4 00
+|  |     |     |     |     |
+|  |     |     |     |     Temperature (sint16, consider byte order!) [0.1°C]
+|  |     |     |     Button event
+|  |     |     Humidity [%]
+|  |     Battery level [%]
+|  Packet ID
+Flags
+
+
+@ 6h + power on (crafted, not recorded!):
+---------------------
+D2 FC
+44 00 12 01 64 F0 xx xx F1 yy yy yy yy
+|  |     |     |        |
+|  |     |     |        Firmware version
+|  |     |     Device type ID
+|  |     Battery level [%]
+|  Packet ID
+Flags
+
+
+--- SAMPLES --------------------------------------------------------------------
+
+
+Discovered a peripheral
+-----------------------
+Address: 7c:c6:b6:61:e3:a0
+Local Name: SBHT-3Ce3a0
+RSSI: -69
+
+
+Discovered a peripheral
+-----------------------
+Address: 7c:c6:b6:61:e3:a0
+Local Name: SBHT-3Ce3a0
+AdvertisementData Len: 49
+[ 02 01 06 0F 16 D2 FC 44 00 EB 01 64 2E 2F 3A 01 45 DB 00 0C 08 53 42 48 54 2D 33 43 65 33 61 30 10 FF A9 0B 01 01 00 0B 03 00 0A A0 E3 61 B6 C6 7C ]
+ManufactuererData Len: 15
+[ A9 0B 01 01 00 0B 03 00 0A A0 E3 61 B6 C6 7C ]
+RSSI: -46
+
+
+
+02 01 06  |  0F 16 D2 FC   44  00 EB   01 64   2E 2F   3A 01   45 DB 00  |  0C 08 53 42 48 54 2D 33 43 65 33 61 30  |  10 FF A9 0B 01 01 00 0B 03 00 0A A0 E3 61 B6 C6 7C  |
