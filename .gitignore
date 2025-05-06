@@ -25,3 +25,6 @@
 *.atsuo
 
 *.componentinfo.xml
+
+#Draw.io backup file
+*.drawio.bkp
